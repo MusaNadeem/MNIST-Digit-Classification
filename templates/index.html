@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MNIST Digit Recognizer</title>
+    <!-- Add Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Vercel/Linear style dark mode palette */
+            --bg-color: #000000;
+            --surface-color: #111111;
+            --border-color: #333333;
+            --text-primary: #ededed;
+            --text-secondary: #888888;
+            --accent-color: #0070f3;
+            --accent-hover: #0051b3;
+            --danger-color: #ff0000;
+            --danger-hover: #cc0000;
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background Shadows */
+        body::before,
+        body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            z-index: -1;
+            filter: blur(90px);
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        body::before {
+            top: 10%;
+            left: -10%;
+            width: 40vw;
+            height: 40vw;
+            min-width: 300px;
+            min-height: 300px;
+            background: rgba(0, 112, 243, 0.2);
+            animation: floatBlue 18s infinite alternate ease-in-out;
+        }
+
+        body::after {
+            bottom: 10%;
+            right: -10%;
+            width: 35vw;
+            height: 35vw;
+            min-width: 250px;
+            min-height: 250px;
+            background: rgba(255, 0, 128, 0.15);
+            animation: floatRed 22s infinite alternate ease-in-out;
+        }
+
+        @keyframes floatBlue {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            33% {
+                transform: translate(15vw, 15vh) scale(1.1);
+            }
+
+            66% {
+                transform: translate(5vw, 30vh) scale(0.9);
+            }
+
+            100% {
+                transform: translate(25vw, -5vh) scale(1.05);
+            }
+        }
+
+        @keyframes floatRed {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            33% {
+                transform: translate(-20vw, -15vh) scale(1.15);
+            }
+
+            66% {
+                transform: translate(10vw, -25vh) scale(0.85);
+            }
+
+            100% {
+                transform: translate(-15vw, 5vh) scale(1.05);
+            }
+        }
+
+        .page-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            margin-top: auto;
+            margin-bottom: auto;
+        }
+
+        .app-header {
+            text-align: center;
+            z-index: 10;
+        }
+
+        .container {
+            grid-column: 2;
+            max-width: 720px;
+            width: 90%;
+            padding: 2.5rem;
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .container:hover {
+            box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+        }
+
+        /* Gradient heading */
+        h1 {
+            font-size: 3.5rem; /* Scaled header */
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #fff 0%, #a5a5a5 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            letter-spacing: -0.06em;
+        }
+
+        p.subtitle {
+            color: var(--text-secondary);
+            font-size: 1.25rem; /* Upscaled visibility */
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 2.25rem; }
+            p.subtitle { font-size: 1rem; }
+        }
+
+        /* Canvas Wrapper for glowing effect */
+        .canvas-wrapper {
+            position: relative;
+            margin-bottom: 2rem;
+            border-radius: 12px;
+            padding: 4px;
+            background: linear-gradient(180deg, #333 0%, #111 100%);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        canvas {
+            display: block;
+            border-radius: 8px;
+            background-color: #000;
+            cursor: crosshair;
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.05);
+            max-width: 100%; /* responsive constraint */
+            height: auto;
+            aspect-ratio: 1 / 1;
+            touch-action: none; /* Prevent scroll on touch devices when drawing */
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 0; /* Tightest box size by default */
+        }
+
+        button {
+            padding: 0.75rem 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            white-space: nowrap;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: var(--font-family);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .btn-primary {
+            background-color: var(--text-primary);
+            color: var(--bg-color);
+            box-shadow: 0 4px 14px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 6px 20px rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: #666;
+        }
+
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-container {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            padding: 0; /* hide spacing initally */
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            opacity: 0;
+            max-height: 0;
+            overflow: hidden;
+            margin-top: 0;
+            border: none; /* hidden border */
+            transition: opacity 0.4s ease, max-height 0.4s ease, padding 0.4s ease, margin-top 0.4s ease;
+            box-sizing: border-box;
+        }
+
+        .result-container.visible {
+            opacity: 1;
+            max-height: 150px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .result-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .result-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+
+        .result-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #0070f3 0%, #00c6ff 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .result-confidence {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #f5a623 0%, #f83600 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .loader {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 3px solid rgba(0, 0, 0, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--bg-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 400px) {
+            .container {
+                padding: 1.5rem;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+
+        .layout-wrapper {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 2rem;
+            align-items: flex-start;
+            width: 100%;
+            max-width: 1350px;
+            z-index: 10;
+            padding-bottom: 2rem;
+        }
+
+        .app-footer {
+            width: 100%;
+            padding: 2rem 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            z-index: 10;
+        }
+
+        .app-footer p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 1.25rem;
+        }
+
+        .social-links a {
+            color: var(--text-secondary);
+            transition: color 0.2s ease, transform 0.2s ease;
+            width: 24px;
+            height: 24px;
+            display: inline-block;
+        }
+
+        .social-links a:hover {
+            color: var(--text-primary);
+            transform: translateY(-2px);
+        }
+
+        .history-pane {
+            width: 250px;
+            justify-self: end;
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
+            max-height: 550px;
+            overflow-y: auto;
+            flex-shrink: 0;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .history-pane:hover {
+            box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+        }
+
+        .history-pane h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0;
+            color: var(--text-primary);
+            text-align: center;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #historyList {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .history-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .history-item img {
+            width: 120px;
+            height: 120px;
+            background-color: #000;
+            border-radius: 8px; /* softer inner corners */
+            border: 1px solid var(--border-color); /* softer darker border */
+        }
+
+        .history-item .pred-text {
+            margin-top: 8px;
+            font-size: 0.95rem;
+            color: #0070f3;
+            font-weight: 700;
+        }
+
+        .history-item .time-text {
+            margin-top: 4px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        @media (max-width: 900px) {
+            .layout-wrapper {
+                display: flex;
+                flex-direction: column-reverse; /* Container top, carousel bottom */
+                align-items: center;
+                gap: 3rem;
+            }
+            .history-pane {
+                width: 90%;
+                max-width: 720px;
+                max-height: none;
+            }
+            #historyList {
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding-bottom: 1rem;
+                gap: 1.5rem;
+                justify-content: flex-start;
+                scrollbar-width: thin;
+                scrollbar-color: var(--text-secondary) transparent;
+            }
+            #historyList::-webkit-scrollbar {
+                height: 6px;
+            }
+            #historyList::-webkit-scrollbar-thumb {
+                background: var(--text-secondary);
+                border-radius: 4px;
+            }
+            .history-item {
+                flex: 0 0 auto;
+                min-width: 140px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="page-content">
+        <header class="app-header">
+            <h1>Digit Detector</h1>
+            <p class="subtitle">Our deep learning model will guess what you draw.</p>
+        </header>
+
+        <div class="layout-wrapper">
+            <div class="history-pane">
+                <h2>History</h2>
+                <div id="historyList"></div>
+            </div>
+
+            <div class="container">
+                <div class="canvas-wrapper">
+                    <canvas id="canvas" width="400" height="400"></canvas>
+                </div>
+
+            <div class="controls">
+                <button class="btn-secondary" id="clearBtn" aria-label="Clear canvas">Clear Canvas</button>
+                <button class="btn-secondary" id="saveBtn" aria-label="Save drawing">Save</button>
+                <button class="btn-primary" id="predictBtn" aria-label="Predict digit">
+                    <span id="btnText">Predict Digit</span>
+                    <div class="loader" id="loader"></div>
+                </button>
+            </div>
+
+            <div class="result-container" id="resultContainer">
+                <div class="result-item">
+                    <span class="result-label">Prediction</span>
+                    <span class="result-value" id="predDigit">-</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Confidence</span>
+                    <span class="result-confidence" id="predConf">-%</span>
+                </div>
+            </div>
+        </div>
+    </div> <!-- Close layout-wrapper -->
+    </main> <!-- Close page-content -->
+
+    <footer class="app-footer">
+        <p>Developed by Muhammad Musa Nadeem</p>
+        <div class="social-links">
+            <a href="https://www.linkedin.com/in/muhammad-musa-nadeem-8978b8307/" target="_blank" title="LinkedIn">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                </svg>
+            </a>
+            <a href="https://github.com/MusaNadeem" target="_blank" title="GitHub">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+            </a>
+        </div>
+    </footer>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        // Setup DOM Elements
+        const predictBtn = document.getElementById('predictBtn');
+        const btnText = document.getElementById('btnText');
+        const loader = document.getElementById('loader');
+        const resultContainer = document.getElementById('resultContainer');
+        const predDigit = document.getElementById('predDigit');
+        const predConf = document.getElementById('predConf');
+        const historyList = document.getElementById('historyList');
+        const saveBtn = document.getElementById('saveBtn');
+
+        // Colors & Settings based on requirements
+        const BG_COLOR = '#000000';
+        const STROKE_COLOR = '#ffffff';
+        const LINE_WIDTH = 26; // Scaled proportionally to the new 400x400 canvas domain
+
+        let isDrawing = false;
+
+        // Initialize canvas
+        function clearCanvas() {
+            ctx.fillStyle = BG_COLOR;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            hideResult();
+        }
+
+        // Setup rendering context for drawing
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = LINE_WIDTH;
+        ctx.strokeStyle = STROKE_COLOR;
+
+        clearCanvas(); // Initial fill
+
+        // Helper to get correct coordinates for both mouse and touch
+        function getCoordinates(event) {
+            const rect = canvas.getBoundingClientRect();
+            // Need mapping to canvas logical size in case it scales via CSS
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            if (event.touches && event.touches.length > 0) {
+                return {
+                    x: (event.touches[0].clientX - rect.left) * scaleX,
+                    y: (event.touches[0].clientY - rect.top) * scaleY
+                };
+            }
+            return {
+                x: (event.clientX - rect.left) * scaleX,
+                y: (event.clientY - rect.top) * scaleY
+            };
+        }
+
+        function startDrawing(e) {
+            e.preventDefault();
+            isDrawing = true;
+            const { x, y } = getCoordinates(e);
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y); // draw a dot if tapped
+            ctx.stroke();
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            const { x, y } = getCoordinates(e);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        }
+
+        function stopDrawing(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            isDrawing = false;
+        }
+
+        // Event Listeners for Mouse
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        // Event Listeners for Touch
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchcancel', stopDrawing);
+
+        // Buttons
+        document.getElementById('clearBtn').addEventListener('click', clearCanvas);
+
+        async function fetchPrediction(dataURL) {
+            const response = await fetch('/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: dataURL })
+            });
+
+            if (!response.ok) throw new Error(`Server error: ${response.status}`);
+            const result = await response.json();
+            if (result.error) throw new Error(result.error);
+            return result;
+        }
+
+        saveBtn.addEventListener('click', async () => {
+            const dataURL = canvas.toDataURL('image/png');
+            let hasDrawing = false;
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            for (let i = 0; i < imgData.length; i += 4) {
+                if (imgData[i] > 0 || imgData[i+1] > 0 || imgData[i+2] > 0) {
+                    hasDrawing = true; break;
+                }
+            }
+            if (!hasDrawing) {
+                alert("Canvas is empty. Draw something before saving!");
+                return;
+            }
+            
+            saveBtn.disabled = true;
+            saveBtn.textContent = "Saving...";
+
+            try {
+                const prediction = await fetchPrediction(dataURL);
+                showResult(prediction.digit, prediction.confidence);
+
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                
+                const img = document.createElement('img');
+                img.src = dataURL;
+
+                const predSpan = document.createElement('span');
+                predSpan.className = 'pred-text';
+                predSpan.textContent = `Digit: ${prediction.digit} / ${prediction.confidence.toFixed(1)}%`;
+                
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'time-text';
+                const now = new Date();
+                timeSpan.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                item.appendChild(img);
+                item.appendChild(predSpan);
+                item.appendChild(timeSpan);
+                
+                historyList.insertBefore(item, historyList.firstChild);
+            } catch (error) {
+                console.error(error);
+                alert("Failed to save and predict.");
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = "Save";
+            }
+        });
+
+        async function handlePredict() {
+            const dataURL = canvas.toDataURL('image/png');
+
+            let hasDrawing = false;
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            for (let i = 0; i < imgData.length; i += 4) {
+                if (imgData[i] > 0 || imgData[i+1] > 0 || imgData[i+2] > 0) {
+                    hasDrawing = true; break;
+                }
+            }
+            if (!hasDrawing) {
+                alert("Canvas is empty. Draw something before predicting!");
+                return;
+            }
+
+            predictBtn.disabled = true;
+            btnText.style.display = 'none';
+            loader.style.display = 'inline-block';
+            hideResult();
+
+            try {
+                const result = await fetchPrediction(dataURL);
+                showResult(result.digit, result.confidence);
+            } catch (error) {
+                console.error("Prediction Error:", error);
+                alert("Failed to get prediction.");
+            } finally {
+                predictBtn.disabled = false;
+                btnText.style.display = 'inline-block';
+                loader.style.display = 'none';
+            }
+        }
+
+        predictBtn.addEventListener('click', handlePredict);
+
+        function showResult(digit, confidence) {
+            predDigit.textContent = digit;
+            predConf.textContent = confidence.toFixed(1) + '%';
+            resultContainer.classList.add('visible');
+        }
+
+        function hideResult() {
+            resultContainer.classList.remove('visible');
+            predDigit.textContent = '-';
+            predConf.textContent = '-%';
+        }
+    </script>
+</body>
+
+</html>
